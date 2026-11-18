@@ -1,0 +1,17 @@
+# Maven
+target/
+
+# Bases de datos H2 locales (se regeneran al iniciar cada servicio)
+data/
+*.mv.db
+*.trace.db
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# Variables de entorno y logs
+.env
+*.log
+.DS_Store

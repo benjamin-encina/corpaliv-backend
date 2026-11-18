@@ -1,0 +1,23 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: oportunidades-service
+  # Perfil por defecto: H2 en archivo (./data), persiste entre reinicios y no requiere instalar nada.
+  # Perfil "mariadb": usa MariaDB (ver docker-compose.yml en la raíz del repositorio).
+  datasource:
+    url: jdbc:h2:file:./data/oportunidades-service;MODE=MariaDB;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: ""
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+
+
+# El secreto debe ser el MISMO en los tres microservicios (auth firma, los otros verifican).
+# Solo desarrollo: en un despliegue real se entrega por variable de entorno JWT_SECRET.
+jwt:
+  secret: ${JWT_SECRET:corpaliv-clave-demo-solo-para-desarrollo-2026-cambiar}

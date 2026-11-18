@@ -1,0 +1,6 @@
+spring:
+  datasource:
+    url: jdbc:mariadb://${DB_HOST:localhost}:${DB_PORT:3306}/corpaliv_aportes
+    username: ${DB_USER:corpaliv}
+    password: ${DB_PASSWORD:corpaliv}
+    driver-class-name: org.mariadb.jdbc.Driver

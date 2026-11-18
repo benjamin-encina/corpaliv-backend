@@ -1,0 +1,136 @@
+### Colección de pruebas (VS Code "REST Client" o IntelliJ HTTP Client)
+### Orden sugerido para la demostración: 1) login  2) pegar el token abajo  3) probar el resto
+
+@auth = http://localhost:8083
+@oportunidades = http://localhost:8081
+@aportes = http://localhost:8082
+@token = PEGAR_AQUI_EL_TOKEN_DEL_LOGIN
+
+### 1. Login de administrador (público)
+POST {{auth}}/api/auth/login
+Content-Type: application/json
+
+{ "correo": "admin@corpaliv.cl", "clave": "admin" }
+
+### 2. Datos de la cuenta (requiere token)
+GET {{auth}}/api/auth/me
+Authorization: Bearer {{token}}
+
+### 3. Listar oportunidades (público)
+GET {{oportunidades}}/api/oportunidades
+
+### 4. Filtrar oportunidades por categoría (público)
+GET {{oportunidades}}/api/oportunidades?categoria=Donación Directa
+
+### 5. Crear oportunidad (admin)
+POST {{oportunidades}}/api/oportunidades
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "titulo": "Biblioteca sonora Escuela Jean Van Dijk",
+  "categoria": "Donación Directa",
+  "descripcion": "Audiolibros y material en braille para la biblioteca de la escuela.",
+  "impactoSocial": "Beneficia a 40 estudiantes con discapacidad visual.",
+  "imagenUrl": "",
+  "contactoEmail": "",
+  "metaFinanciamiento": 2000000,
+  "montoRecaudado": 0
+}
+
+### 6. Actualizar oportunidad (admin)
+PUT {{oportunidades}}/api/oportunidades/3
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "titulo": "Biblioteca sonora Escuela Jean Van Dijk",
+  "categoria": "Donación Directa",
+  "descripcion": "Audiolibros y material en braille para la biblioteca de la escuela.",
+  "impactoSocial": "Beneficia a 40 estudiantes con discapacidad visual.",
+  "imagenUrl": "",
+  "contactoEmail": "biblioteca@corpaliv-demo.cl",
+  "metaFinanciamiento": 2000000,
+  "montoRecaudado": 150000
+}
+
+### 7. Eliminar oportunidad (admin)
+DELETE {{oportunidades}}/api/oportunidades/3
+Authorization: Bearer {{token}}
+
+### 8. Registrar aporte de una PERSONA (público, lo hace el formulario de la app)
+POST {{aportes}}/api/aportes
+Content-Type: application/json
+
+{
+  "tipo": "PERSONA",
+  "oportunidadId": 1,
+  "oportunidad": "Taller de Preparación Laboral Alba Lab",
+  "nombre": "Camila Silva",
+  "rut": "45678987-3",
+  "correo": "camila@mail.cl",
+  "telefono": "+569 12345678",
+  "tipoAporte": "Mensual"
+}
+
+### 9. Registrar aporte de una EMPRESA (público)
+POST {{aportes}}/api/aportes
+Content-Type: application/json
+
+{
+  "tipo": "EMPRESA",
+  "oportunidadId": 2,
+  "oportunidad": "Equipamiento Escuela Jean Van Dijk",
+  "nombre": "Constructora Sur SpA",
+  "rut": "76123456-K",
+  "correo": "contacto@sur.cl",
+  "telefono": "+56 123456789",
+  "direccion": "Av. Collao 1202, Concepción",
+  "giro": "Construcción",
+  "representante": "Pedro Rojas",
+  "rutRepresentante": "11222333-K"
+}
+
+### 10. Listar aportes para el Dashboard (admin). Filtros: ?tipo=PERSONA o ?tipo=EMPRESA
+GET {{aportes}}/api/aportes
+Authorization: Bearer {{token}}
+
+### 11. Totales del Dashboard (admin)
+GET {{aportes}}/api/aportes/resumen
+Authorization: Bearer {{token}}
+
+### 12. Marcar aporte como contactado, tras "Contactar Whatsapp" (admin)
+PATCH {{aportes}}/api/aportes/1/estado
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "estado": "CONTACTADO" }
+
+### 13. Actualizar un aporte (admin)
+PUT {{aportes}}/api/aportes/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "tipo": "PERSONA",
+  "oportunidadId": 1,
+  "oportunidad": "Taller de Preparación Laboral Alba Lab",
+  "nombre": "Camila Silva Rojas",
+  "rut": "45678987-3",
+  "correo": "camila@mail.cl",
+  "telefono": "+569 12345678",
+  "tipoAporte": "Anual"
+}
+
+### 14. Eliminar un aporte (admin)
+DELETE {{aportes}}/api/aportes/1
+Authorization: Bearer {{token}}
+
+### 15. Error esperado: aporte sin token en un endpoint de admin -> 401
+GET {{aportes}}/api/aportes
+
+### 16. Error esperado: datos inválidos -> 400 con el detalle por campo
+POST {{aportes}}/api/aportes
+Content-Type: application/json
+
+{ "tipo": "PERSONA", "oportunidad": "X", "nombre": "Al", "rut": "123", "correo": "no-es-correo", "telefono": "999" }
