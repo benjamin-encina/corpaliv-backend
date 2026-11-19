@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.ColumnDefault;
 
 /** Aporte de una persona o empresa (equivale a RegistroGuardado de la app). */
 @Entity
@@ -21,6 +22,11 @@ public class Aporte {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private TipoRegistro tipo;
+
+    @Enumerated(EnumType.STRING)
+    @ColumnDefault("'APORTE'")
+    @Column(nullable = false, length = 20)
+    private MotivoRegistro motivo = MotivoRegistro.APORTE;
 
     @Column(name = "oportunidad_id")
     private Long oportunidadId;
@@ -67,6 +73,9 @@ public class Aporte {
 
     public TipoRegistro getTipo() { return tipo; }
     public void setTipo(TipoRegistro tipo) { this.tipo = tipo; }
+
+    public MotivoRegistro getMotivo() { return motivo; }
+    public void setMotivo(MotivoRegistro motivo) { this.motivo = motivo; }
 
     public Long getOportunidadId() { return oportunidadId; }
     public void setOportunidadId(Long oportunidadId) { this.oportunidadId = oportunidadId; }

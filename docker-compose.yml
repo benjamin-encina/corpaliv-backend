@@ -1,8 +1,11 @@
-# MariaDB opcional para el perfil "mariadb" de los tres microservicios.
-# Uso:  docker compose up -d
+# Base de datos opcional para los perfiles "mariadb" o "mysql" de los microservicios.
+# Levanta UNA sola (ambas usan el puerto 3306):
+#   docker compose up -d mariadb     -> perfil de Spring: mariadb
+#   docker compose up -d mysql       -> perfil de Spring: mysql
 services:
   mariadb:
     image: mariadb:11
+    profiles: ["mariadb"]
     container_name: corpaliv-mariadb
     restart: unless-stopped
     environment:
@@ -15,5 +18,21 @@ services:
       - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
       - mariadb_data:/var/lib/mysql
 
+  mysql:
+    image: mysql:8.4
+    profiles: ["mysql"]
+    container_name: corpaliv-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: corpaliv
+      MYSQL_PASSWORD: corpaliv
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - mysql_data:/var/lib/mysql
+
 volumes:
   mariadb_data:
+  mysql_data:

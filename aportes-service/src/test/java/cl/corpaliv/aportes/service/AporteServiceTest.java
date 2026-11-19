@@ -14,6 +14,7 @@ import cl.corpaliv.aportes.dto.ResumenResponse;
 import cl.corpaliv.aportes.exception.ApiException;
 import cl.corpaliv.aportes.model.Aporte;
 import cl.corpaliv.aportes.model.EstadoContacto;
+import cl.corpaliv.aportes.model.MotivoRegistro;
 import cl.corpaliv.aportes.model.TipoRegistro;
 import cl.corpaliv.aportes.repository.AporteRepository;
 import java.time.Clock;
@@ -44,22 +45,23 @@ class AporteServiceTest {
         servicio = new AporteService(repositorio, reloj);
     }
 
-    private AporteRequest persona(String tipoAporte) {
-        return new AporteRequest(TipoRegistro.PERSONA, 1L, "Taller de Preparación Laboral Alba Lab",
+    private AporteRequest persona(MotivoRegistro motivo, String tipoAporte) {
+        return new AporteRequest(TipoRegistro.PERSONA, motivo, 1L, "Taller de Preparación Laboral Alba Lab",
                 "  Camila Silva ", "12345678-9", "camila@mail.cl", "+569 12345678", tipoAporte,
                 null, null, null, null);
     }
 
-    private AporteRequest empresa(String giro) {
-        return new AporteRequest(TipoRegistro.EMPRESA, 2L, "Equipamiento Escuela Jean Van Dijk",
+    private AporteRequest empresa(MotivoRegistro motivo, String giro) {
+        return new AporteRequest(TipoRegistro.EMPRESA, motivo, 2L, "Equipamiento Escuela Jean Van Dijk",
                 "Constructora Sur SpA", "76123456-k", "contacto@sur.cl", "+56 123456789", null,
                 "Av. Collao 1202, Concepción", giro, "Pedro Rojas", "11222333-k");
     }
 
-    private Aporte guardado(Long id, TipoRegistro tipo) {
+    private Aporte guardado(Long id, TipoRegistro tipo, MotivoRegistro motivo) {
         Aporte a = new Aporte();
         a.setId(id);
         a.setTipo(tipo);
+        a.setMotivo(motivo);
         a.setOportunidad("Taller");
         a.setNombre("Camila Silva");
         a.setRut("12345678-9");
@@ -79,13 +81,14 @@ class AporteServiceTest {
     }
 
     @Test
-    void crearPersonaQueAportaGuardaPendienteConFecha() {
+    void crearAporteDePersonaGuardaPendienteConFecha() {
         guardarDevolviendoId(1L);
 
-        AporteResponse respuesta = servicio.crear(persona("Mensual"));
+        AporteResponse respuesta = servicio.crear(persona(MotivoRegistro.APORTE, "Mensual"));
 
         assertEquals(1L, respuesta.id());
         assertEquals("PERSONA", respuesta.tipo());
+        assertEquals("APORTE", respuesta.motivo());
         assertEquals("Camila Silva", respuesta.nombre());
         assertEquals("Mensual", respuesta.tipoAporte());
         assertEquals("PENDIENTE", respuesta.estado());
@@ -94,8 +97,18 @@ class AporteServiceTest {
     }
 
     @Test
-    void crearPersonaSinFrecuenciaValidaLanza400() {
-        ApiException error = assertThrows(ApiException.class, () -> servicio.crear(persona("Cada semana")));
+    void sinMotivoSeAsumeAporte() {
+        guardarDevolviendoId(1L);
+
+        AporteResponse respuesta = servicio.crear(persona(null, "Anual"));
+
+        assertEquals("APORTE", respuesta.motivo());
+    }
+
+    @Test
+    void aporteDePersonaSinFrecuenciaValidaLanza400() {
+        ApiException error = assertThrows(ApiException.class,
+                () -> servicio.crear(persona(MotivoRegistro.APORTE, "Cada semana")));
 
         assertEquals(HttpStatus.BAD_REQUEST, error.getStatus());
         assertTrue(error.getDetalles().containsKey("tipoAporte"));
@@ -103,10 +116,41 @@ class AporteServiceTest {
     }
 
     @Test
+    void postulacionNoExigeFrecuenciaYQuedaPendiente() {
+        guardarDevolviendoId(3L);
+
+        AporteResponse respuesta = servicio.crear(persona(MotivoRegistro.POSTULACION, null));
+
+        assertEquals(3L, respuesta.id());
+        assertEquals("POSTULACION", respuesta.motivo());
+        assertEquals("Postulación a programa", respuesta.tipoAporte());
+        assertEquals("PENDIENTE", respuesta.estado());
+    }
+
+    @Test
+    void postulacionIgnoraLaFrecuenciaSiLaEnvian() {
+        guardarDevolviendoId(4L);
+
+        AporteResponse respuesta = servicio.crear(persona(MotivoRegistro.POSTULACION, "Mensual"));
+
+        assertEquals("Postulación a programa", respuesta.tipoAporte());
+    }
+
+    @Test
+    void empresaNoPuedePostular() {
+        ApiException error = assertThrows(ApiException.class,
+                () -> servicio.crear(empresa(MotivoRegistro.POSTULACION, "Construcción")));
+
+        assertEquals(HttpStatus.BAD_REQUEST, error.getStatus());
+        assertTrue(error.getDetalles().containsKey("motivo"));
+        verify(repositorio, never()).save(any());
+    }
+
+    @Test
     void crearEmpresaCompletaNormalizaRutYFijaTipoDeAporte() {
         guardarDevolviendoId(2L);
 
-        AporteResponse respuesta = servicio.crear(empresa("Construcción"));
+        AporteResponse respuesta = servicio.crear(empresa(MotivoRegistro.APORTE, "Construcción"));
 
         assertEquals("EMPRESA", respuesta.tipo());
         assertEquals("Aporte empresarial", respuesta.tipoAporte());
@@ -117,29 +161,50 @@ class AporteServiceTest {
 
     @Test
     void crearEmpresaSinGiroLanza400() {
-        ApiException error = assertThrows(ApiException.class, () -> servicio.crear(empresa(" ")));
+        ApiException error = assertThrows(ApiException.class,
+                () -> servicio.crear(empresa(MotivoRegistro.APORTE, " ")));
 
         assertEquals(HttpStatus.BAD_REQUEST, error.getStatus());
         assertTrue(error.getDetalles().containsKey("giro"));
     }
 
     @Test
-    void listarSinFiltroEntregaTodos() {
-        when(repositorio.findAllByOrderByFechaRegistroDesc())
-                .thenReturn(List.of(guardado(2L, TipoRegistro.EMPRESA), guardado(1L, TipoRegistro.PERSONA)));
+    void listarSinFiltrosEntregaTodos() {
+        when(repositorio.findAllByOrderByFechaRegistroDesc()).thenReturn(List.of(
+                guardado(2L, TipoRegistro.EMPRESA, MotivoRegistro.APORTE),
+                guardado(1L, TipoRegistro.PERSONA, MotivoRegistro.POSTULACION)));
 
-        assertEquals(2, servicio.listar(null).size());
+        assertEquals(2, servicio.listar(null, null).size());
     }
 
     @Test
-    void listarConTipoUsaElFiltro() {
+    void listarConTipoUsaElFiltroDeTipo() {
         when(repositorio.findByTipoOrderByFechaRegistroDesc(TipoRegistro.PERSONA))
-                .thenReturn(List.of(guardado(1L, TipoRegistro.PERSONA)));
+                .thenReturn(List.of(guardado(1L, TipoRegistro.PERSONA, MotivoRegistro.APORTE)));
 
-        List<AporteResponse> lista = servicio.listar(TipoRegistro.PERSONA);
+        List<AporteResponse> lista = servicio.listar(TipoRegistro.PERSONA, null);
 
         assertEquals(1, lista.size());
         assertEquals("PERSONA", lista.get(0).tipo());
+    }
+
+    @Test
+    void listarConMotivoUsaElFiltroDeMotivo() {
+        when(repositorio.findByMotivoOrderByFechaRegistroDesc(MotivoRegistro.POSTULACION))
+                .thenReturn(List.of(guardado(5L, TipoRegistro.PERSONA, MotivoRegistro.POSTULACION)));
+
+        List<AporteResponse> lista = servicio.listar(null, MotivoRegistro.POSTULACION);
+
+        assertEquals(1, lista.size());
+        assertEquals("POSTULACION", lista.get(0).motivo());
+    }
+
+    @Test
+    void listarConTipoYMotivoCombinaLosFiltros() {
+        when(repositorio.findByTipoAndMotivoOrderByFechaRegistroDesc(TipoRegistro.EMPRESA, MotivoRegistro.APORTE))
+                .thenReturn(List.of(guardado(2L, TipoRegistro.EMPRESA, MotivoRegistro.APORTE)));
+
+        assertEquals(1, servicio.listar(TipoRegistro.EMPRESA, MotivoRegistro.APORTE).size());
     }
 
     @Test
@@ -153,10 +218,11 @@ class AporteServiceTest {
 
     @Test
     void actualizarCambiaLosDatosYConservaLaFecha() {
-        when(repositorio.findById(1L)).thenReturn(Optional.of(guardado(1L, TipoRegistro.PERSONA)));
+        when(repositorio.findById(1L))
+                .thenReturn(Optional.of(guardado(1L, TipoRegistro.PERSONA, MotivoRegistro.APORTE)));
         when(repositorio.save(any(Aporte.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        AporteResponse respuesta = servicio.actualizar(1L, persona("Anual"));
+        AporteResponse respuesta = servicio.actualizar(1L, persona(MotivoRegistro.APORTE, "Anual"));
 
         assertEquals("Anual", respuesta.tipoAporte());
         assertEquals(AHORA, respuesta.fecha());
@@ -164,7 +230,8 @@ class AporteServiceTest {
 
     @Test
     void cambiarEstadoMarcaComoContactado() {
-        when(repositorio.findById(1L)).thenReturn(Optional.of(guardado(1L, TipoRegistro.PERSONA)));
+        when(repositorio.findById(1L))
+                .thenReturn(Optional.of(guardado(1L, TipoRegistro.PERSONA, MotivoRegistro.POSTULACION)));
         when(repositorio.save(any(Aporte.class))).thenAnswer(inv -> inv.getArgument(0));
 
         AporteResponse respuesta = servicio.cambiarEstado(1L, EstadoContacto.CONTACTADO);
@@ -192,17 +259,21 @@ class AporteServiceTest {
     }
 
     @Test
-    void resumenEntregaLosTotalesDelDashboard() {
-        when(repositorio.count()).thenReturn(3L);
-        when(repositorio.countByTipo(TipoRegistro.PERSONA)).thenReturn(2L);
-        when(repositorio.countByTipo(TipoRegistro.EMPRESA)).thenReturn(1L);
-        when(repositorio.countByEstado(EstadoContacto.PENDIENTE)).thenReturn(2L);
+    void resumenSeparaAportesDePostulaciones() {
+        when(repositorio.count()).thenReturn(5L);
+        when(repositorio.countByMotivo(MotivoRegistro.APORTE)).thenReturn(3L);
+        when(repositorio.countByMotivo(MotivoRegistro.POSTULACION)).thenReturn(2L);
+        when(repositorio.countByTipoAndMotivo(TipoRegistro.PERSONA, MotivoRegistro.APORTE)).thenReturn(2L);
+        when(repositorio.countByTipoAndMotivo(TipoRegistro.EMPRESA, MotivoRegistro.APORTE)).thenReturn(1L);
+        when(repositorio.countByEstado(EstadoContacto.PENDIENTE)).thenReturn(4L);
 
         ResumenResponse resumen = servicio.resumen();
 
-        assertEquals(3L, resumen.total());
+        assertEquals(5L, resumen.total());
+        assertEquals(3L, resumen.totalAportes());
+        assertEquals(2L, resumen.totalPostulaciones());
         assertEquals(2L, resumen.totalPersonas());
         assertEquals(1L, resumen.totalEmpresas());
-        assertEquals(2L, resumen.pendientes());
+        assertEquals(4L, resumen.pendientes());
     }
 }

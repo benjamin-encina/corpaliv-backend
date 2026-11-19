@@ -6,6 +6,7 @@ import cl.corpaliv.aportes.dto.ResumenResponse;
 import cl.corpaliv.aportes.exception.ApiException;
 import cl.corpaliv.aportes.model.Aporte;
 import cl.corpaliv.aportes.model.EstadoContacto;
+import cl.corpaliv.aportes.model.MotivoRegistro;
 import cl.corpaliv.aportes.model.TipoRegistro;
 import cl.corpaliv.aportes.repository.AporteRepository;
 import java.time.Clock;
@@ -21,6 +22,7 @@ public class AporteService {
     // Mismas frecuencias que el desplegable de la app
     private static final List<String> FRECUENCIAS = List.of("Donación única", "Mensual", "Anual");
     private static final String APORTE_EMPRESARIAL = "Aporte empresarial";
+    private static final String POSTULACION_PROGRAMA = "Postulación a programa";
 
     private final AporteRepository repositorio;
     private final Clock reloj;
@@ -32,7 +34,7 @@ public class AporteService {
 
     @Transactional
     public AporteResponse crear(AporteRequest solicitud) {
-        validarReglasPorTipo(solicitud);
+        validarReglas(solicitud);
 
         Aporte nuevo = new Aporte();
         aplicar(nuevo, solicitud);
@@ -41,11 +43,19 @@ public class AporteService {
         return aRespuesta(repositorio.save(nuevo));
     }
 
+    /** Los dos filtros son opcionales y se pueden combinar. */
     @Transactional(readOnly = true)
-    public List<AporteResponse> listar(TipoRegistro tipo) {
-        List<Aporte> lista = (tipo == null)
-                ? repositorio.findAllByOrderByFechaRegistroDesc()
-                : repositorio.findByTipoOrderByFechaRegistroDesc(tipo);
+    public List<AporteResponse> listar(TipoRegistro tipo, MotivoRegistro motivo) {
+        List<Aporte> lista;
+        if (tipo == null && motivo == null) {
+            lista = repositorio.findAllByOrderByFechaRegistroDesc();
+        } else if (motivo == null) {
+            lista = repositorio.findByTipoOrderByFechaRegistroDesc(tipo);
+        } else if (tipo == null) {
+            lista = repositorio.findByMotivoOrderByFechaRegistroDesc(motivo);
+        } else {
+            lista = repositorio.findByTipoAndMotivoOrderByFechaRegistroDesc(tipo, motivo);
+        }
         return lista.stream().map(this::aRespuesta).toList();
     }
 
@@ -56,7 +66,7 @@ public class AporteService {
 
     @Transactional
     public AporteResponse actualizar(Long id, AporteRequest solicitud) {
-        validarReglasPorTipo(solicitud);
+        validarReglas(solicitud);
 
         Aporte existente = buscar(id);
         aplicar(existente, solicitud);
@@ -73,7 +83,7 @@ public class AporteService {
     @Transactional
     public void eliminar(Long id) {
         if (!repositorio.existsById(id)) {
-            throw ApiException.noEncontrado("No existe el aporte con id " + id);
+            throw ApiException.noEncontrado("No existe el registro con id " + id);
         }
         repositorio.deleteById(id);
     }
@@ -82,29 +92,40 @@ public class AporteService {
     public ResumenResponse resumen() {
         return new ResumenResponse(
                 repositorio.count(),
-                repositorio.countByTipo(TipoRegistro.PERSONA),
-                repositorio.countByTipo(TipoRegistro.EMPRESA),
+                repositorio.countByMotivo(MotivoRegistro.APORTE),
+                repositorio.countByMotivo(MotivoRegistro.POSTULACION),
+                repositorio.countByTipoAndMotivo(TipoRegistro.PERSONA, MotivoRegistro.APORTE),
+                repositorio.countByTipoAndMotivo(TipoRegistro.EMPRESA, MotivoRegistro.APORTE),
                 repositorio.countByEstado(EstadoContacto.PENDIENTE));
     }
 
     private Aporte buscar(Long id) {
         return repositorio.findById(id)
-                .orElseThrow(() -> ApiException.noEncontrado("No existe el aporte con id " + id));
+                .orElseThrow(() -> ApiException.noEncontrado("No existe el registro con id " + id));
     }
 
-    // Reglas que dependen del tipo de formulario (las mismas que valida la app)
-    private void validarReglasPorTipo(AporteRequest s) {
-        Map<String, String> errores = new LinkedHashMap<>();
+    // Si la app no envía motivo, se asume APORTE (compatible con el formulario original)
+    private MotivoRegistro motivoDe(AporteRequest s) {
+        return s.motivo() == null ? MotivoRegistro.APORTE : s.motivo();
+    }
 
-        if (s.tipo() == TipoRegistro.PERSONA) {
-            if (s.tipoAporte() == null || !FRECUENCIAS.contains(s.tipoAporte().trim())) {
-                errores.put("tipoAporte", "Selecciona la frecuencia: Donación única, Mensual o Anual");
+    // Reglas que dependen del tipo de formulario y del motivo (las mismas que valida la app)
+    private void validarReglas(AporteRequest s) {
+        Map<String, String> errores = new LinkedHashMap<>();
+        MotivoRegistro motivo = motivoDe(s);
+
+        if (s.tipo() == TipoRegistro.EMPRESA) {
+            if (motivo == MotivoRegistro.POSTULACION) {
+                errores.put("motivo", "Las empresas solo pueden registrar aportes");
             }
-        } else if (s.tipo() == TipoRegistro.EMPRESA) {
             exigir(errores, "direccion", s.direccion());
             exigir(errores, "giro", s.giro());
             exigir(errores, "representante", s.representante());
             exigir(errores, "rutRepresentante", s.rutRepresentante());
+        } else if (s.tipo() == TipoRegistro.PERSONA && motivo == MotivoRegistro.APORTE) {
+            if (s.tipoAporte() == null || !FRECUENCIAS.contains(s.tipoAporte().trim())) {
+                errores.put("tipoAporte", "Selecciona la frecuencia: Donación única, Mensual o Anual");
+            }
         }
 
         if (!errores.isEmpty()) {
@@ -119,7 +140,10 @@ public class AporteService {
     }
 
     private void aplicar(Aporte destino, AporteRequest s) {
+        MotivoRegistro motivo = motivoDe(s);
+
         destino.setTipo(s.tipo());
+        destino.setMotivo(motivo);
         destino.setOportunidadId(s.oportunidadId());
         destino.setOportunidad(s.oportunidad().trim());
         destino.setNombre(s.nombre().trim());
@@ -134,7 +158,10 @@ public class AporteService {
             destino.setRepresentante(s.representante().trim());
             destino.setRutRepresentante(s.rutRepresentante().trim().toUpperCase());
         } else {
-            destino.setTipoAporte(s.tipoAporte().trim());
+            // Una postulación no lleva frecuencia: se guarda un valor fijo
+            destino.setTipoAporte(motivo == MotivoRegistro.POSTULACION
+                    ? POSTULACION_PROGRAMA
+                    : s.tipoAporte().trim());
             destino.setDireccion(null);
             destino.setGiro(null);
             destino.setRepresentante(null);
@@ -150,6 +177,7 @@ public class AporteService {
         return new AporteResponse(
                 a.getId(),
                 a.getTipo().name(),
+                a.getMotivo().name(),
                 a.getOportunidadId(),
                 a.getOportunidad(),
                 a.getNombre(),

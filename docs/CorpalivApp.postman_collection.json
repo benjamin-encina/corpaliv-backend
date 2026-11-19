@@ -1,0 +1,1436 @@
+{
+  "info": {
+    "name": "CorpalivApp - Backend",
+    "description": "Pruebas de los 3 microservicios (auth 8083, oportunidades 8081, aportes 8082). Ejecutar con la colección completa (Run) o la carpeta 1 primero para obtener el token.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "auth",
+      "value": "http://localhost:8083"
+    },
+    {
+      "key": "oportunidades",
+      "value": "http://localhost:8081"
+    },
+    {
+      "key": "aportes",
+      "value": "http://localhost:8082"
+    },
+    {
+      "key": "jwtAdmin",
+      "value": ""
+    },
+    {
+      "key": "oportunidadId",
+      "value": ""
+    },
+    {
+      "key": "aporteId",
+      "value": ""
+    },
+    {
+      "key": "postulacionId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. auth-service",
+      "item": [
+        {
+          "name": "1. Login administrador (200 + guarda token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test(\"Devuelve un token\", function () { pm.expect(json.token).to.be.a(\"string\"); pm.expect(json.token.length).to.be.above(20); });",
+                  "pm.test(\"Rol ADMINISTRADOR\", function () { pm.expect(json.rol).to.eql(\"ADMINISTRADOR\"); });",
+                  "pm.collectionVariables.set(\"jwtAdmin\", json.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{auth}}/api/auth/login",
+              "host": [
+                "{{auth}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Ejecutar primero: guarda el token en la variable de colección {{jwtAdmin}}.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"admin@corpaliv.cl\",\n  \"clave\": \"admin\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "2. Login con clave incorrecta (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", function () { pm.response.to.have.status(401); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{auth}}/api/auth/login",
+              "host": [
+                "{{auth}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"admin@corpaliv.cl\",\n  \"clave\": \"incorrecta\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "3. Datos de la cuenta /me (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Correo del admin\", function () { pm.expect(pm.response.json().correo).to.eql(\"admin@corpaliv.cl\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtAdmin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{auth}}/api/auth/me",
+              "host": [
+                "{{auth}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. /me sin token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", function () { pm.response.to.have.status(401); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{auth}}/api/auth/me",
+              "host": [
+                "{{auth}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. oportunidades-service",
+      "item": [
+        {
+          "name": "1. Listar oportunidades - público (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Hay al menos 2 oportunidades\", function () { pm.expect(pm.response.json().length).to.be.at.least(2); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{oportunidades}}/api/oportunidades",
+              "host": [
+                "{{oportunidades}}"
+              ],
+              "path": [
+                "api",
+                "oportunidades"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "2. Filtrar por categoría (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Solo Donación Directa\", function () { pm.response.json().forEach(function (o) { pm.expect(o.categoria).to.eql(\"Donación Directa\"); }); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{oportunidades}}/api/oportunidades?categoria=Donación Directa",
+              "host": [
+                "{{oportunidades}}"
+              ],
+              "path": [
+                "api",
+                "oportunidades"
+              ],
+              "query": [
+                {
+                  "key": "categoria",
+                  "value": "Donación Directa"
+                }
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "3. Obtener oportunidad 1 (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Trae título\", function () { pm.expect(pm.response.json().titulo).to.be.a(\"string\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{oportunidades}}/api/oportunidades/1",
+              "host": [
+                "{{oportunidades}}"
+              ],
+              "path": [
+                "api",
+                "oportunidades",
+                "1"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "4. Obtener oportunidad inexistente (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{oportunidades}}/api/oportunidades/99999",
+              "host": [
+                "{{oportunidades}}"
+              ],
+              "path": [
+                "api",
+                "oportunidades",
+                "99999"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "5. Crear oportunidad - admin (201 + guarda id)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.collectionVariables.set(\"oportunidadId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtAdmin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{oportunidades}}/api/oportunidades",
+              "host": [
+                "{{oportunidades}}"
+              ],
+              "path": [
+                "api",
+                "oportunidades"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Biblioteca sonora Escuela Jean Van Dijk\",\n  \"categoria\": \"Donación Directa\",\n  \"descripcion\": \"Audiolibros y material en braille para la biblioteca de la escuela.\",\n  \"impactoSocial\": \"Beneficia a 40 estudiantes con discapacidad visual.\",\n  \"imagenUrl\": \"\",\n  \"contactoEmail\": \"\",\n  \"metaFinanciamiento\": 2000000,\n  \"montoRecaudado\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "6. Crear oportunidad sin token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", function () { pm.response.to.have.status(401); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{oportunidades}}/api/oportunidades",
+              "host": [
+                "{{oportunidades}}"
+              ],
+              "path": [
+                "api",
+                "oportunidades"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Biblioteca sonora Escuela Jean Van Dijk\",\n  \"categoria\": \"Donación Directa\",\n  \"descripcion\": \"Audiolibros y material en braille para la biblioteca de la escuela.\",\n  \"impactoSocial\": \"Beneficia a 40 estudiantes con discapacidad visual.\",\n  \"imagenUrl\": \"\",\n  \"contactoEmail\": \"\",\n  \"metaFinanciamiento\": 2000000,\n  \"montoRecaudado\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "7. Crear oportunidad con datos inválidos (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Trae detalle por campo\", function () { pm.expect(pm.response.json().detalles).to.be.an(\"object\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtAdmin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{oportunidades}}/api/oportunidades",
+              "host": [
+                "{{oportunidades}}"
+              ],
+              "path": [
+                "api",
+                "oportunidades"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"\",\n  \"categoria\": \"Donación Directa\",\n  \"descripcion\": \"Audiolibros y material en braille para la biblioteca de la escuela.\",\n  \"impactoSocial\": \"Beneficia a 40 estudiantes con discapacidad visual.\",\n  \"imagenUrl\": \"\",\n  \"contactoEmail\": \"\",\n  \"metaFinanciamiento\": 0,\n  \"montoRecaudado\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "8. Actualizar oportunidad - admin (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Monto actualizado\", function () { pm.expect(pm.response.json().montoRecaudado).to.eql(150000); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtAdmin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{oportunidades}}/api/oportunidades/{{oportunidadId}}",
+              "host": [
+                "{{oportunidades}}"
+              ],
+              "path": [
+                "api",
+                "oportunidades",
+                "{{oportunidadId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Biblioteca sonora Escuela Jean Van Dijk\",\n  \"categoria\": \"Donación Directa\",\n  \"descripcion\": \"Audiolibros y material en braille para la biblioteca de la escuela.\",\n  \"impactoSocial\": \"Beneficia a 40 estudiantes con discapacidad visual.\",\n  \"imagenUrl\": \"\",\n  \"contactoEmail\": \"biblioteca@corpaliv-demo.cl\",\n  \"metaFinanciamiento\": 2000000,\n  \"montoRecaudado\": 150000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "9. Eliminar oportunidad - admin (204)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 204\", function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtAdmin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{oportunidades}}/api/oportunidades/{{oportunidadId}}",
+              "host": [
+                "{{oportunidades}}"
+              ],
+              "path": [
+                "api",
+                "oportunidades",
+                "{{oportunidadId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "10. Obtener la oportunidad eliminada (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{oportunidades}}/api/oportunidades/{{oportunidadId}}",
+              "host": [
+                "{{oportunidades}}"
+              ],
+              "path": [
+                "api",
+                "oportunidades",
+                "{{oportunidadId}}"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. aportes-service",
+      "item": [
+        {
+          "name": "1. Registrar APORTE de PERSONA - público (201 + guarda id)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", function () { pm.response.to.have.status(201); });",
+                  "const a = pm.response.json();",
+                  "pm.test(\"Motivo APORTE\", function () { pm.expect(a.motivo).to.eql(\"APORTE\"); });",
+                  "pm.test(\"Queda PENDIENTE\", function () { pm.expect(a.estado).to.eql(\"PENDIENTE\"); });",
+                  "pm.collectionVariables.set(\"aporteId\", a.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{aportes}}/api/aportes",
+              "host": [
+                "{{aportes}}"
+              ],
+              "path": [
+                "api",
+                "aportes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"PERSONA\",\n  \"motivo\": \"APORTE\",\n  \"oportunidadId\": 1,\n  \"oportunidad\": \"Taller de Preparación Laboral Alba Lab\",\n  \"nombre\": \"Camila Silva\",\n  \"rut\": \"45678987-3\",\n  \"correo\": \"camila@mail.cl\",\n  \"telefono\": \"+569 12345678\",\n  \"tipoAporte\": \"Mensual\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "2. Registrar APORTE de EMPRESA - público (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"Tipo de aporte empresarial\", function () { pm.expect(pm.response.json().tipoAporte).to.eql(\"Aporte empresarial\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{aportes}}/api/aportes",
+              "host": [
+                "{{aportes}}"
+              ],
+              "path": [
+                "api",
+                "aportes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"EMPRESA\",\n  \"motivo\": \"APORTE\",\n  \"oportunidadId\": 2,\n  \"oportunidad\": \"Equipamiento Escuela Jean Van Dijk\",\n  \"nombre\": \"Constructora Sur SpA\",\n  \"rut\": \"76123456-K\",\n  \"correo\": \"contacto@sur.cl\",\n  \"telefono\": \"+56 123456789\",\n  \"direccion\": \"Av. Collao 1202, Concepción\",\n  \"giro\": \"Construcción\",\n  \"representante\": \"Pedro Rojas\",\n  \"rutRepresentante\": \"11222333-K\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "3. Registrar POSTULACION de persona - público (201 + guarda id)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", function () { pm.response.to.have.status(201); });",
+                  "const p = pm.response.json();",
+                  "pm.test(\"Motivo POSTULACION\", function () { pm.expect(p.motivo).to.eql(\"POSTULACION\"); });",
+                  "pm.test(\"No exige frecuencia\", function () { pm.expect(p.tipoAporte).to.eql(\"Postulación a programa\"); });",
+                  "pm.test(\"Queda PENDIENTE\", function () { pm.expect(p.estado).to.eql(\"PENDIENTE\"); });",
+                  "pm.collectionVariables.set(\"postulacionId\", p.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{aportes}}/api/aportes",
+              "host": [
+                "{{aportes}}"
+              ],
+              "path": [
+                "api",
+                "aportes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"PERSONA\",\n  \"motivo\": \"POSTULACION\",\n  \"oportunidadId\": 1,\n  \"oportunidad\": \"Taller de Preparación Laboral Alba Lab\",\n  \"nombre\": \"Matías Pérez\",\n  \"rut\": \"19876543-2\",\n  \"correo\": \"matias@mail.cl\",\n  \"telefono\": \"+569 87654321\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "4. Empresa no puede postular (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Error en motivo\", function () { pm.expect(pm.response.json().detalles.motivo).to.be.a(\"string\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{aportes}}/api/aportes",
+              "host": [
+                "{{aportes}}"
+              ],
+              "path": [
+                "api",
+                "aportes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"EMPRESA\",\n  \"motivo\": \"POSTULACION\",\n  \"oportunidadId\": 2,\n  \"oportunidad\": \"Equipamiento Escuela Jean Van Dijk\",\n  \"nombre\": \"Constructora Sur SpA\",\n  \"rut\": \"76123456-K\",\n  \"correo\": \"contacto@sur.cl\",\n  \"telefono\": \"+56 123456789\",\n  \"direccion\": \"Av. Collao 1202, Concepción\",\n  \"giro\": \"Construcción\",\n  \"representante\": \"Pedro Rojas\",\n  \"rutRepresentante\": \"11222333-K\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "5. Aporte de persona sin frecuencia (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Indica tipoAporte\", function () { pm.expect(pm.response.json().detalles.tipoAporte).to.be.a(\"string\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{aportes}}/api/aportes",
+              "host": [
+                "{{aportes}}"
+              ],
+              "path": [
+                "api",
+                "aportes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"PERSONA\",\n  \"motivo\": \"APORTE\",\n  \"oportunidadId\": 1,\n  \"oportunidad\": \"Taller de Preparación Laboral Alba Lab\",\n  \"nombre\": \"Camila Silva\",\n  \"rut\": \"45678987-3\",\n  \"correo\": \"camila@mail.cl\",\n  \"telefono\": \"+569 12345678\",\n  \"tipoAporte\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "6. Registro con datos inválidos (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });",
+                  "pm.test(\"Trae detalle por campo\", function () { pm.expect(pm.response.json().detalles).to.be.an(\"object\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{aportes}}/api/aportes",
+              "host": [
+                "{{aportes}}"
+              ],
+              "path": [
+                "api",
+                "aportes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"PERSONA\",\n  \"oportunidad\": \"X\",\n  \"nombre\": \"Al\",\n  \"rut\": \"123\",\n  \"correo\": \"no-es-correo\",\n  \"telefono\": \"999\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "7. Motivo inexistente (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", function () { pm.response.to.have.status(400); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{aportes}}/api/aportes",
+              "host": [
+                "{{aportes}}"
+              ],
+              "path": [
+                "api",
+                "aportes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"PERSONA\",\n  \"motivo\": \"OTRO\",\n  \"oportunidadId\": 1,\n  \"oportunidad\": \"Taller de Preparación Laboral Alba Lab\",\n  \"nombre\": \"Camila Silva\",\n  \"rut\": \"45678987-3\",\n  \"correo\": \"camila@mail.cl\",\n  \"telefono\": \"+569 12345678\",\n  \"tipoAporte\": \"Mensual\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "8. Listar sin token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", function () { pm.response.to.have.status(401); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{aportes}}/api/aportes",
+              "host": [
+                "{{aportes}}"
+              ],
+              "path": [
+                "api",
+                "aportes"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "9. Listar todo - admin (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Hay registros\", function () { pm.expect(pm.response.json().length).to.be.at.least(3); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtAdmin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{aportes}}/api/aportes",
+              "host": [
+                "{{aportes}}"
+              ],
+              "path": [
+                "api",
+                "aportes"
+              ]
+            }
+          }
+        },
+        {
+          "name": "10. Filtrar motivo=POSTULACION (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+                  "const l = pm.response.json();",
+                  "pm.test(\"Hay postulaciones\", function () { pm.expect(l.length).to.be.at.least(1); });",
+                  "pm.test(\"Solo postulaciones\", function () { l.forEach(function (a) { pm.expect(a.motivo).to.eql(\"POSTULACION\"); }); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtAdmin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{aportes}}/api/aportes?motivo=POSTULACION",
+              "host": [
+                "{{aportes}}"
+              ],
+              "path": [
+                "api",
+                "aportes"
+              ],
+              "query": [
+                {
+                  "key": "motivo",
+                  "value": "POSTULACION"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "11. Filtrar motivo=APORTE (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Solo aportes\", function () { pm.response.json().forEach(function (a) { pm.expect(a.motivo).to.eql(\"APORTE\"); }); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtAdmin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{aportes}}/api/aportes?motivo=APORTE",
+              "host": [
+                "{{aportes}}"
+              ],
+              "path": [
+                "api",
+                "aportes"
+              ],
+              "query": [
+                {
+                  "key": "motivo",
+                  "value": "APORTE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "12. Filtrar tipo=PERSONA y motivo=APORTE (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Solo personas que aportan\", function () { pm.response.json().forEach(function (a) { pm.expect(a.tipo).to.eql(\"PERSONA\"); pm.expect(a.motivo).to.eql(\"APORTE\"); }); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtAdmin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{aportes}}/api/aportes?tipo=PERSONA&motivo=APORTE",
+              "host": [
+                "{{aportes}}"
+              ],
+              "path": [
+                "api",
+                "aportes"
+              ],
+              "query": [
+                {
+                  "key": "tipo",
+                  "value": "PERSONA"
+                },
+                {
+                  "key": "motivo",
+                  "value": "APORTE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "13. Filtrar tipo=EMPRESA (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Solo empresas\", function () { pm.response.json().forEach(function (a) { pm.expect(a.tipo).to.eql(\"EMPRESA\"); }); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtAdmin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{aportes}}/api/aportes?tipo=EMPRESA",
+              "host": [
+                "{{aportes}}"
+              ],
+              "path": [
+                "api",
+                "aportes"
+              ],
+              "query": [
+                {
+                  "key": "tipo",
+                  "value": "EMPRESA"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "14. Resumen del Dashboard (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+                  "const r = pm.response.json();",
+                  "pm.test(\"total = aportes + postulaciones\", function () { pm.expect(r.total).to.eql(r.totalAportes + r.totalPostulaciones); });",
+                  "pm.test(\"aportes = personas + empresas\", function () { pm.expect(r.totalAportes).to.eql(r.totalPersonas + r.totalEmpresas); });",
+                  "pm.test(\"Hay postulaciones contadas\", function () { pm.expect(r.totalPostulaciones).to.be.at.least(1); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtAdmin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{aportes}}/api/aportes/resumen",
+              "host": [
+                "{{aportes}}"
+              ],
+              "path": [
+                "api",
+                "aportes",
+                "resumen"
+              ]
+            }
+          }
+        },
+        {
+          "name": "15. Obtener aporte (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtAdmin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{aportes}}/api/aportes/{{aporteId}}",
+              "host": [
+                "{{aportes}}"
+              ],
+              "path": [
+                "api",
+                "aportes",
+                "{{aporteId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "16. Actualizar aporte (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Cambió la frecuencia\", function () { pm.expect(pm.response.json().tipoAporte).to.eql(\"Anual\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtAdmin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{aportes}}/api/aportes/{{aporteId}}",
+              "host": [
+                "{{aportes}}"
+              ],
+              "path": [
+                "api",
+                "aportes",
+                "{{aporteId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"PERSONA\",\n  \"motivo\": \"APORTE\",\n  \"oportunidadId\": 1,\n  \"oportunidad\": \"Taller de Preparación Laboral Alba Lab\",\n  \"nombre\": \"Camila Silva Rojas\",\n  \"rut\": \"45678987-3\",\n  \"correo\": \"camila@mail.cl\",\n  \"telefono\": \"+569 12345678\",\n  \"tipoAporte\": \"Anual\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "17. Marcar postulación como CONTACTADO (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test(\"Estado CONTACTADO\", function () { pm.expect(pm.response.json().estado).to.eql(\"CONTACTADO\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtAdmin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{aportes}}/api/aportes/{{postulacionId}}/estado",
+              "host": [
+                "{{aportes}}"
+              ],
+              "path": [
+                "api",
+                "aportes",
+                "{{postulacionId}}",
+                "estado"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"CONTACTADO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "18. Eliminar aporte (204)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 204\", function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtAdmin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{aportes}}/api/aportes/{{aporteId}}",
+              "host": [
+                "{{aportes}}"
+              ],
+              "path": [
+                "api",
+                "aportes",
+                "{{aporteId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "19. Eliminar postulación (204)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 204\", function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtAdmin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{aportes}}/api/aportes/{{postulacionId}}",
+              "host": [
+                "{{aportes}}"
+              ],
+              "path": [
+                "api",
+                "aportes",
+                "{{postulacionId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "20. Obtener el aporte eliminado (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwtAdmin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{aportes}}/api/aportes/{{aporteId}}",
+              "host": [
+                "{{aportes}}"
+              ],
+              "path": [
+                "api",
+                "aportes",
+                "{{aporteId}}"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

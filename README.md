@@ -28,7 +28,7 @@ Tres microservicios independientes, cada uno con su propia base de datos:
 |---------------|--------|------------------------|
 | `auth-service` | 8083 | Inicio de sesión del administrador (cuenta + rol "Administrador" del perfil). Emite un token JWT. |
 | `oportunidades-service` | 8081 | CRUD de las oportunidades/proyectos que muestra la pantalla Oportunidades. Lectura pública, escritura solo administrador. |
-| `aportes-service` | 8082 | Registro de aportes de personas y empresas (formulario de la app) y su gestión en el Dashboard: listar, filtrar, resumen, marcar como contactado, editar y eliminar. |
+| `aportes-service` | 8082 | Registro de aportes de personas y empresas y de postulaciones de personas a programas (formulario de la app), y su gestión en el Dashboard: listar, filtrar, resumen, marcar como contactado, editar y eliminar. |
 
 **Seguridad:** `auth-service` firma un JWT (HS256) con el rol de la cuenta; los otros dos servicios lo verifican con el
 mismo secreto. Son públicos solo `GET /api/oportunidades/**` y `POST /api/aportes` (el formulario lo usa cualquier
@@ -36,7 +36,7 @@ visitante). Todo lo demás exige un token de **ADMINISTRADOR**. Sin token respon
 
 **Validaciones** (equivalentes a las del formulario de la app): RUN/RUT solo por formato (`45678987-3` se acepta),
 correo, teléfono chileno (`+569 12345678` para personas, `+56 123456789` para empresas), frecuencia obligatoria para
-personas y giro, dirección, representante y su RUT obligatorios para empresas. Los errores vuelven en JSON con el
+personas que aportan (una postulación no la necesita; las empresas solo pueden aportar) y giro, dirección, representante y su RUT obligatorios para empresas. Los errores vuelven en JSON con el
 detalle por campo.
 
 **Compatibilidad con la app:** `GET /api/oportunidades` devuelve los mismos campos que `OportunidadModel` y
@@ -67,9 +67,9 @@ detalle por campo.
 
 | Método | Ruta | Acceso | Descripción |
 |--------|------|--------|-------------|
-| POST | `/api/aportes` | Público | Registrar aporte de persona o empresa (`201`) |
-| GET | `/api/aportes` | Admin | Lista (filtro opcional `?tipo=PERSONA` o `?tipo=EMPRESA`) |
-| GET | `/api/aportes/resumen` | Admin | Totales: total, personas, empresas, pendientes |
+| POST | `/api/aportes` | Público | Registrar un aporte (persona o empresa) o una postulación a programa (persona, `"motivo": "POSTULACION"`). Sin `motivo` se asume `APORTE` (`201`) |
+| GET | `/api/aportes` | Admin | Lista (filtros opcionales y combinables `?tipo=PERSONA\|EMPRESA` y `?motivo=APORTE\|POSTULACION`) |
+| GET | `/api/aportes/resumen` | Admin | Totales: total, aportes, postulaciones, personas, empresas, pendientes |
 | GET | `/api/aportes/{id}` | Admin | Detalle |
 | PUT | `/api/aportes/{id}` | Admin | Actualizar |
 | PATCH | `/api/aportes/{id}/estado` | Admin | Body `{estado: "CONTACTADO" \| "PENDIENTE"}` |
@@ -98,13 +98,15 @@ cd aportes-service       && mvn spring-boot:run
 Por defecto cada servicio usa **H2 en archivo** (carpeta `data/`, persiste entre reinicios y no requiere instalar nada).
 Al iniciar se crean las tablas, la cuenta de administrador y las dos oportunidades iniciales.
 
-**Con MariaDB** (como en Fullstack II):
+**Con MariaDB o MySQL** (elige una; ambas usan el puerto 3306):
 
 ```bash
-docker compose up -d            # levanta MariaDB y crea las 3 bases de datos
-cd auth-service && mvn spring-boot:run -Dspring-boot.run.profiles=mariadb
+docker compose up -d mariadb     # o: docker compose up -d mysql
+cd auth-service && mvn spring-boot:run -Dspring-boot.run.profiles=mariadb   # o: ...profiles=mysql
 # (igual en los otros dos servicios)
 ```
+Las tres bases de datos (`corpaliv_auth`, `corpaliv_oportunidades`, `corpaliv_aportes`) se crean con `docker/init.sql`.
+Si ya tienes MySQL instalado en el computador, ejecuta ese archivo y usa el perfil `mysql`.
 
 **Pruebas unitarias:** `mvn test` dentro de cada servicio.
 
@@ -133,7 +135,7 @@ corpaliv-backend/
 ├── auth-service/            # JWT + cuenta de administrador
 ├── oportunidades-service/   # CRUD de oportunidades
 ├── aportes-service/         # Aportes de personas y empresas + Dashboard
-├── docker/init.sql          # Crea las bases de datos en MariaDB
+├── docker/init.sql          # Crea las bases de datos en MariaDB / MySQL
 ├── docker-compose.yml
 └── docs/endpoints.http      # Pruebas de todos los endpoints
 ```

@@ -4,6 +4,7 @@ import cl.corpaliv.aportes.dto.AporteRequest;
 import cl.corpaliv.aportes.dto.AporteResponse;
 import cl.corpaliv.aportes.dto.EstadoRequest;
 import cl.corpaliv.aportes.dto.ResumenResponse;
+import cl.corpaliv.aportes.model.MotivoRegistro;
 import cl.corpaliv.aportes.model.TipoRegistro;
 import cl.corpaliv.aportes.service.AporteService;
 import jakarta.validation.Valid;
@@ -31,17 +32,21 @@ public class AporteController {
         this.servicio = servicio;
     }
 
-    /** Público: cualquier persona o empresa registra su aporte desde el formulario de la app. */
+    /** Público: cualquier persona o empresa registra su aporte, o una persona su postulación, desde el formulario. */
     @PostMapping
     public ResponseEntity<AporteResponse> crear(@Valid @RequestBody AporteRequest solicitud) {
         AporteResponse creado = servicio.crear(solicitud);
         return ResponseEntity.created(URI.create("/api/aportes/" + creado.id())).body(creado);
     }
 
-    /** Solo administrador. Filtro opcional ?tipo=PERSONA o ?tipo=EMPRESA. */
+    /**
+     * Solo administrador. Filtros opcionales y combinables:
+     * ?tipo=PERSONA|EMPRESA y ?motivo=APORTE|POSTULACION.
+     */
     @GetMapping
-    public List<AporteResponse> listar(@RequestParam(required = false) TipoRegistro tipo) {
-        return servicio.listar(tipo);
+    public List<AporteResponse> listar(@RequestParam(required = false) TipoRegistro tipo,
+                                       @RequestParam(required = false) MotivoRegistro motivo) {
+        return servicio.listar(tipo, motivo);
     }
 
     /** Solo administrador. Totales para las tarjetas del Dashboard. */

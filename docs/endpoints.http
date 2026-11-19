@@ -91,8 +91,49 @@ Content-Type: application/json
   "rutRepresentante": "11222333-K"
 }
 
-### 10. Listar aportes para el Dashboard (admin). Filtros: ?tipo=PERSONA o ?tipo=EMPRESA
+### 9b. Registrar una POSTULACIÓN a programa (público, solo personas; no lleva frecuencia)
+POST {{aportes}}/api/aportes
+Content-Type: application/json
+
+{
+  "tipo": "PERSONA",
+  "motivo": "POSTULACION",
+  "oportunidadId": 1,
+  "oportunidad": "Taller de Preparación Laboral Alba Lab",
+  "nombre": "Matías Pérez",
+  "rut": "19876543-2",
+  "correo": "matias@mail.cl",
+  "telefono": "+569 87654321"
+}
+
+### 9c. Una empresa NO puede postular -> 400 con detalle en "motivo"
+POST {{aportes}}/api/aportes
+Content-Type: application/json
+
+{
+  "tipo": "EMPRESA",
+  "motivo": "POSTULACION",
+  "oportunidad": "Equipamiento Escuela Jean Van Dijk",
+  "nombre": "Constructora Sur SpA",
+  "rut": "76123456-K",
+  "correo": "contacto@sur.cl",
+  "telefono": "+56 123456789",
+  "direccion": "Av. Collao 1202, Concepción",
+  "giro": "Construcción",
+  "representante": "Pedro Rojas",
+  "rutRepresentante": "11222333-K"
+}
+
+### 10. Listar para el Dashboard (admin). Filtros combinables: ?tipo=PERSONA|EMPRESA y ?motivo=APORTE|POSTULACION
 GET {{aportes}}/api/aportes
+Authorization: Bearer {{token}}
+
+### 10b. Solo las postulaciones (admin)
+GET {{aportes}}/api/aportes?motivo=POSTULACION
+Authorization: Bearer {{token}}
+
+### 10c. Solo los aportes de personas (admin)
+GET {{aportes}}/api/aportes?tipo=PERSONA&motivo=APORTE
 Authorization: Bearer {{token}}
 
 ### 11. Totales del Dashboard (admin)

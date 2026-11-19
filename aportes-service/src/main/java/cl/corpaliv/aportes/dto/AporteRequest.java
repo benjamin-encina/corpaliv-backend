@@ -1,5 +1,6 @@
 package cl.corpaliv.aportes.dto;
 
+import cl.corpaliv.aportes.model.MotivoRegistro;
 import cl.corpaliv.aportes.model.TipoRegistro;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -8,12 +9,14 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
- * Lo que envía el formulario de la app (persona o empresa). Las reglas que dependen del tipo
- * (frecuencia para personas; giro, representante y dirección para empresas) las valida AporteService.
+ * Lo que envía el formulario de la app (persona o empresa).
+ * motivo: APORTE (por defecto si no se envía) o POSTULACION ("Ingresar a Programa", solo personas).
+ * Las reglas que dependen del tipo y del motivo las valida AporteService.
  * El RUT se valida solo por formato, igual que la app: 7 u 8 dígitos, guion y dígito o K.
  */
 public record AporteRequest(
         @NotNull(message = "Indica si es PERSONA o EMPRESA") TipoRegistro tipo,
+        MotivoRegistro motivo,
         Long oportunidadId,
         @NotBlank(message = "Campo obligatorio")
         @Size(max = 200, message = "Máximo 200 caracteres") String oportunidad,
